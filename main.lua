@@ -9,17 +9,29 @@ if not _G[ADDON_NAME] then
 end
 addon = _G[ADDON_NAME]
 
+local DEBUG_MODE = false
+
+----------------------
+-- Interval variables  --
+----------------------
+
+local lastMinuteHomeLatencySum = 0
+local lastMinuteHomeLatencyAverage = 0
+
+local lastMinuteWorldLatencySum = 0
+local lastMinuteWorldLatencyAverage = 0
+
+local minutesPassed = 0
+local updateInterval = 0
+
 ----------------------
 -- Interval constants  --
 ----------------------
-local MAX_INTERVAL = 5
-local UPDATE_INTERVAL = 0
+local MAX_INTERVAL = 1
+local MAX_SECONDS_TO_AVERGE = 60
 
-----------------------
--- Latency tolerance constants  --
-----------------------
-local HOME_LATENCY_TOLERANCE = 95
-local WORLD_LATENCY_TOLERANCE = 100
+local HOME_LATENCY_TOLERANCE = 5
+local WORLD_LATENCY_TOLERANCE = 5
 
 ----------------------
 -- Texts colors contants  --
@@ -42,6 +54,7 @@ local START_MESSAGE = "|cFF99CC33 SimpleLagCheck initialized."
 local WARNING_TEXT = "WARNING!!!"
 local HOME_LATENCY_TEXT = "Home latency:"
 local WORLD_LATENCY_TEXT = "World latency:"
+local AVERAGE_PING_TEXT = "|cffffcc00 Last minute latency average -> home: |cFF99CC33 %s |cffffcc00 | world: |cFF99CC33 %s" 
 
 addon:RegisterEvent(ADDON_LOADED_EVENT)
 
@@ -78,14 +91,26 @@ end
 function addon:CheckLagStatusAndPrintIfNeeded()
     local latencyHome = select(3, GetNetStats())
     local latencyWorld = select(4, GetNetStats())
-    local currentDate = addon:Format12HrDateTime(GetTime())
 
-    if (latencyHome > HOME_LATENCY_TOLERANCE) then
+    lastMinuteHomeLatencySum = lastMinuteHomeLatencySum + latencyHome
+    lastMinuteWorldLatencySum = lastMinuteWorldLatencySum + latencyWorld
+
+    if (minutesPassed >= MAX_SECONDS_TO_AVERGE) then
+        lastMinuteHomeLatencyAverage = math.floor(lastMinuteHomeLatencySum / MAX_SECONDS_TO_AVERGE)
+        lastMinuteWorldLatencyAverage = math.floor(lastMinuteWorldLatencySum / MAX_SECONDS_TO_AVERGE)
+        lastMinuteHomeLatencySum = 0
+        lastMinuteWorldLatencySum = 0
+        minutesPassed = 0
+
+        print(string.format(AVERAGE_PING_TEXT, lastMinuteHomeLatencyAverage, lastMinuteWorldLatencyAverage))
+    end
+
+    if (lastMinuteHomeLatencyAverage > 0 and latencyHome > (lastMinuteHomeLatencyAverage + HOME_LATENCY_TOLERANCE)) then
         
         local text = string.format(
             "%s %s %s %s %s %s %s %s", 
             TIME_TEXT_COLOR, 
-            currentDate, 
+            addon:Format12HrDateTime(GetTime()), 
             WARNING_TEXT_COLOR,
             WARNING_TEXT,
             REGULAR_TEXT_COLOR,
@@ -97,11 +122,11 @@ function addon:CheckLagStatusAndPrintIfNeeded()
         print(text)
     end
 
-    if (latencyWorld > WORLD_LATENCY_TOLERANCE) then
+    if (lastMinuteWorldLatencyAverage > 0 and latencyWorld > (lastMinuteWorldLatencyAverage + WORLD_LATENCY_TOLERANCE)) then
         local text = string.format(
             "%s %s %s %s %s %s %s %s", 
             TIME_TEXT_COLOR, 
-            currentDate, 
+            addon:Format12HrDateTime(GetTime()), 
             WARNING_TEXT_COLOR,
             WARNING_TEXT,
             REGULAR_TEXT_COLOR,
@@ -118,10 +143,17 @@ function addon:MonitorPing()
 
 	addon:SetScript("OnUpdate", function(self, arg1)
 		
-		if (UPDATE_INTERVAL > 0) then
-			UPDATE_INTERVAL = UPDATE_INTERVAL - arg1
+		if (updateInterval > 0) then
+			updateInterval = updateInterval - arg1
 		else
-			UPDATE_INTERVAL = MAX_INTERVAL
+			updateInterval = MAX_INTERVAL
+            minutesPassed = minutesPassed + 1
+
+            if (DEBUG_MODE) then
+                print(string.format("home | average: %s | sum: %s | seconds: %s", lastMinuteHomeLatencyAverage, lastMinuteHomeLatencySum, minutesPassed))
+                print(string.format("world | average: %s | sum: %s | seconds: %s", lastMinuteWorldLatencyAverage, lastMinuteWorldLatencySum, minutesPassed))
+            end
+
 			self:CheckLagStatusAndPrintIfNeeded()
 		end
 
