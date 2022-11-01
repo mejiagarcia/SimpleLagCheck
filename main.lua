@@ -4,9 +4,12 @@
 ----------------------
 
 local ADDON_NAME, addon = ...
+
 if not _G[ADDON_NAME] then
 	_G[ADDON_NAME] = CreateFrame("Frame")
+    _G[ADDON_NAME].hidden = true
 end
+
 addon = _G[ADDON_NAME]
 
 local DEBUG_MODE = false
@@ -28,10 +31,11 @@ local updateInterval = 0
 -- Interval constants  --
 ----------------------
 local MAX_INTERVAL = 1
-local MAX_SECONDS_TO_AVERGE = 60
 
-local HOME_LATENCY_TOLERANCE = 5
-local WORLD_LATENCY_TOLERANCE = 5
+local MAX_SECONDS_TO_WAIT_WORLD = 60
+
+local HOME_LATENCY_TOLERANCE = 3
+local WORLD_LATENCY_TOLERANCE = 3
 
 ----------------------
 -- Texts colors contants  --
@@ -54,7 +58,8 @@ local START_MESSAGE = "|cFF99CC33 SimpleLagCheck initialized."
 local WARNING_TEXT = "WARNING!!!"
 local HOME_LATENCY_TEXT = "Home latency:"
 local WORLD_LATENCY_TEXT = "World latency:"
-local AVERAGE_PING_TEXT = "|cffffcc00 Last minute latency average -> home: |cFF99CC33 %s |cffffcc00 | world: |cFF99CC33 %s" 
+local AVERAGE_PING_TEXT = "|cffffcc00 Last minute latency average -> home:|cFF99CC33 %s |cffffcc00 | world:|cFF99CC33 %s" 
+local INVALID_COMMAND_TEXT = "SimpleLagCheck: invalid command"
 
 addon:RegisterEvent(ADDON_LOADED_EVENT)
 
@@ -81,6 +86,7 @@ end)
 
 function addon:StartAddon() 
     print(START_MESSAGE)
+
     self:MonitorPing()
 end
 
@@ -95,9 +101,9 @@ function addon:CheckLagStatusAndPrintIfNeeded()
     lastMinuteHomeLatencySum = lastMinuteHomeLatencySum + latencyHome
     lastMinuteWorldLatencySum = lastMinuteWorldLatencySum + latencyWorld
 
-    if (minutesPassed >= MAX_SECONDS_TO_AVERGE) then
-        lastMinuteHomeLatencyAverage = math.floor(lastMinuteHomeLatencySum / MAX_SECONDS_TO_AVERGE)
-        lastMinuteWorldLatencyAverage = math.floor(lastMinuteWorldLatencySum / MAX_SECONDS_TO_AVERGE)
+    if (minutesPassed >= MAX_SECONDS_TO_WAIT_WORLD) then
+        lastMinuteHomeLatencyAverage = math.floor(lastMinuteHomeLatencySum / MAX_SECONDS_TO_WAIT_WORLD)
+        lastMinuteWorldLatencyAverage = math.floor(lastMinuteWorldLatencySum / MAX_SECONDS_TO_WAIT_WORLD)
         lastMinuteHomeLatencySum = 0
         lastMinuteWorldLatencySum = 0
         minutesPassed = 0
@@ -105,7 +111,9 @@ function addon:CheckLagStatusAndPrintIfNeeded()
         print(string.format(AVERAGE_PING_TEXT, lastMinuteHomeLatencyAverage, lastMinuteWorldLatencyAverage))
     end
 
-    if (lastMinuteHomeLatencyAverage > 0 and latencyHome > (lastMinuteHomeLatencyAverage + HOME_LATENCY_TOLERANCE)) then
+    local hasHomeLag = lastMinuteHomeLatencyAverage > 0 and latencyHome > (lastMinuteHomeLatencyAverage + HOME_LATENCY_TOLERANCE)
+
+    if (hasHomeLag) then
         
         local text = string.format(
             "%s %s %s %s %s %s %s %s", 
@@ -119,10 +127,14 @@ function addon:CheckLagStatusAndPrintIfNeeded()
             latencyHome
         )
 
+        lastMinuteHomeLatencyAverage = 0
+
         print(text)
     end
 
-    if (lastMinuteWorldLatencyAverage > 0 and latencyWorld > (lastMinuteWorldLatencyAverage + WORLD_LATENCY_TOLERANCE)) then
+    local hasWorldLag = lastMinuteWorldLatencyAverage > 0 and latencyWorld > (lastMinuteWorldLatencyAverage + WORLD_LATENCY_TOLERANCE)
+
+    if (hasWorldLag) then
         local text = string.format(
             "%s %s %s %s %s %s %s %s", 
             TIME_TEXT_COLOR, 
@@ -134,6 +146,8 @@ function addon:CheckLagStatusAndPrintIfNeeded()
             PING_TEXT_COLOR, 
             latencyWorld
         )
+
+        lastMinuteWorldLatencyAverage = 0
 
         print(text)
     end
@@ -149,15 +163,36 @@ function addon:MonitorPing()
 			updateInterval = MAX_INTERVAL
             minutesPassed = minutesPassed + 1
 
+			self:CheckLagStatusAndPrintIfNeeded()
+
             if (DEBUG_MODE) then
-                print(string.format("home | average: %s | sum: %s | seconds: %s", lastMinuteHomeLatencyAverage, lastMinuteHomeLatencySum, minutesPassed))
-                print(string.format("world | average: %s | sum: %s | seconds: %s", lastMinuteWorldLatencyAverage, lastMinuteWorldLatencySum, minutesPassed))
+                self:PrintDebugInfo()
             end
 
-			self:CheckLagStatusAndPrintIfNeeded()
 		end
 
 	end)
 	
 	addon:Show()
+end
+
+function addon:PrintDebugInfo()
+    print(string.format("home | sum: %s | seconds: %s", lastMinuteHomeLatencySum, minutesPassed))
+    print(string.format("world | sum: %s | seconds: %s", lastMinuteWorldLatencySum, minutesPassed))
+end
+
+-- TODO: Use single command for both instructions --
+
+SLASH_SIMPLELAGCHECKDEBUGON1 = "/slc-debug-on"
+
+SlashCmdList.SIMPLELAGCHECKDEBUGON = function(msg, editBox)
+    DEBUG_MODE = true
+    print("debug mode on")
+end
+
+SLASH_SIMPLELAGCHECKDEBUGOFF1 = "/slc-debug-off"
+
+SlashCmdList.SIMPLELAGCHECKDEBUGOFF = function(msg, editBox)
+    DEBUG_MODE = false
+    print("debug mode off")
 end

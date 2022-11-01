@@ -4,4 +4,4 @@
 ## Notes: Warning lags
 ## Author: @mejiagarcia
 
-main.lua
+Main.lua
