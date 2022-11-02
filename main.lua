@@ -58,7 +58,7 @@ local START_MESSAGE = "|cFF99CC33 SimpleLagCheck initialized."
 local WARNING_TEXT = "WARNING!!!"
 local HOME_LATENCY_TEXT = "Home latency:"
 local WORLD_LATENCY_TEXT = "World latency:"
-local AVERAGE_PING_TEXT = "|cffffcc00 Last minute latency average -> home:|cFF99CC33 %s |cffffcc00 | world:|cFF99CC33 %s" 
+local AVERAGE_PING_TEXT = "|cFF99CC33 SimpleLagCheck: |cffffcc00 Last minute latency average -> home:|cFF99CC33 %s |cffffcc00| world:|cFF99CC33 %s" 
 local INVALID_COMMAND_TEXT = "SimpleLagCheck: invalid command"
 
 addon:RegisterEvent(ADDON_LOADED_EVENT)
