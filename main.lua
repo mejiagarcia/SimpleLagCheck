@@ -94,6 +94,22 @@ function addon:Format12HrDateTime(dateTime)
     return date("%H:%M:%S", dateTime)
 end
 
+function addon:PrintLagWarning(latencyText, latency)
+    local text = string.format(
+        "%s %s %s %s %s %s %s %s", 
+        TIME_TEXT_COLOR, 
+        addon:Format12HrDateTime(GetTime()), 
+        WARNING_TEXT_COLOR,
+        WARNING_TEXT,
+        REGULAR_TEXT_COLOR,
+        latencyText, 
+        PING_TEXT_COLOR, 
+        latency
+    )
+
+    print(text)
+end
+
 function addon:CheckLagStatusAndPrintIfNeeded()
     local latencyHome = select(3, GetNetStats())
     local latencyWorld = select(4, GetNetStats())
@@ -114,42 +130,15 @@ function addon:CheckLagStatusAndPrintIfNeeded()
     local hasHomeLag = lastMinuteHomeLatencyAverage > 0 and latencyHome > (lastMinuteHomeLatencyAverage + HOME_LATENCY_TOLERANCE)
 
     if (hasHomeLag) then
-        
-        local text = string.format(
-            "%s %s %s %s %s %s %s %s", 
-            TIME_TEXT_COLOR, 
-            addon:Format12HrDateTime(GetTime()), 
-            WARNING_TEXT_COLOR,
-            WARNING_TEXT,
-            REGULAR_TEXT_COLOR,
-            HOME_LATENCY_TEXT, 
-            PING_TEXT_COLOR, 
-            latencyHome
-        )
-
+        addon:PrintLagWarning(HOME_LATENCY_TEXT, latencyHome)
         lastMinuteHomeLatencyAverage = 0
-
-        print(text)
     end
 
     local hasWorldLag = lastMinuteWorldLatencyAverage > 0 and latencyWorld > (lastMinuteWorldLatencyAverage + WORLD_LATENCY_TOLERANCE)
 
     if (hasWorldLag) then
-        local text = string.format(
-            "%s %s %s %s %s %s %s %s", 
-            TIME_TEXT_COLOR, 
-            addon:Format12HrDateTime(GetTime()), 
-            WARNING_TEXT_COLOR,
-            WARNING_TEXT,
-            REGULAR_TEXT_COLOR,
-            WORLD_LATENCY_TEXT, 
-            PING_TEXT_COLOR, 
-            latencyWorld
-        )
-
+        addon:PrintLagWarning(WORLD_LATENCY_TEXT, latencyWorld)
         lastMinuteWorldLatencyAverage = 0
-
-        print(text)
     end
 end
 
@@ -177,22 +166,24 @@ function addon:MonitorPing()
 end
 
 function addon:PrintDebugInfo()
-    print(string.format("home | sum: %s | seconds: %s", lastMinuteHomeLatencySum, minutesPassed))
-    print(string.format("world | sum: %s | seconds: %s", lastMinuteWorldLatencySum, minutesPassed))
+    print(string.format("home -> sum: %s | seconds: %s", lastMinuteHomeLatencySum, minutesPassed))
+    print(string.format("world -> sum: %s | seconds: %s", lastMinuteWorldLatencySum, minutesPassed))
 end
 
--- TODO: Use single command for both instructions --
+SLASH_SIMPLELAGCHECK1 = "/slc"
 
-SLASH_SIMPLELAGCHECKDEBUGON1 = "/slc-debug-on"
+SlashCmdList.SIMPLELAGCHECK = function(msg, editBox)
+	local name1, name2 = strsplit(" ", msg)
 
-SlashCmdList.SIMPLELAGCHECKDEBUGON = function(msg, editBox)
-    DEBUG_MODE = true
-    print("debug mode on")
-end
+	if name1 == "debug" and name2 == "on" then 
+		DEBUG_MODE = true
+        print("debug mode on")
+        return
+	end
 
-SLASH_SIMPLELAGCHECKDEBUGOFF1 = "/slc-debug-off"
-
-SlashCmdList.SIMPLELAGCHECKDEBUGOFF = function(msg, editBox)
-    DEBUG_MODE = false
-    print("debug mode off")
+    if name1 == "debug" and name2 == "off" then 
+        DEBUG_MODE = false
+        print("debug mode off")
+        return
+	end
 end
