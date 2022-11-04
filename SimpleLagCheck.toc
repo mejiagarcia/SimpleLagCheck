@@ -1,7 +1,7 @@
 ## Interface: 100000
 ## Version: 10.0.0
 ## Title: SimpleLagCheck
-## Notes: Warning lags
+## Notes: This addon will average your last minute world and home ping and warn you if you are getting a higher latency.
 ## Author: @mejiagarcia
 
 Main.lua
